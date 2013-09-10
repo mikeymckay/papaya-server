@@ -1,0 +1,123 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="papaya.css" media="screen" />
+    <style>
+      body{
+        font-size:20px;
+        font-family:  Andika;
+      }
+      label{
+        display:block;
+      }
+    </style>
+  </head>
+  <body>
+    <img id='logo' src='papaya.png'>
+    <div style='width:90%'>
+    For each language, specify a name and the phonemes required for that language. Pressing update will then create a button to upload sound files for each phoneme.<br/><br/>
+    </div>
+    <label for='name'>Name</label>
+    <input id='name' name='name' type='text'></input>
+
+    <label for='phonemes'>Phonemes</label>
+    <textarea name='phonemes' id='phonemes'></textarea>
+
+    <button id='update' type='button'>Update</button>
+    <div id='mp3s'></div>
+  </body>
+  <script src="jquery-1.9.1.min.js"></script>
+  <script src="coffee-script.js"></script>
+  <script src="underscore-min.js"></script>
+  <script src="underscore.string.js" type="text/javascript"></script>
+  <script type="text/javascript"> _.mixin(_.str.exports()) </script>
+  <script type='text/coffeescript'>
+
+    clear = ->
+      $("textarea[name=phonemes]").val ""
+      $("#mp3s").html ""
+
+    loadPhonemesFromJson = (options) ->
+      clear()
+      name = $("input[name=name]").val()
+      $.ajax
+        type: 'get'
+        url: "/uploads/#{name}/phonemes.json"
+        dataType: "json"
+        success: (result) ->
+          $("textarea[name=phonemes]").val result.join(", ")
+          options?.success()
+        error: ->
+          console.log "Error loading phonemes.json"
+
+    loadPhonemesFromJsonAndShowPhonemeseFiles = (options) ->
+      loadPhonemesFromJson
+        success: ->
+          showPhonemeFiles
+            success: ->
+              options?.success()
+
+    savePhonemesToJson  = (options) ->
+      name = $("input[name=name]").val()
+      phonemes = $("textarea[name=phonemes]").val()?.split(/, */)
+      console.log phonemes
+
+      $.ajax
+        type: 'post'
+        url: "/save/#{name}"
+        data:
+          data: JSON.stringify phonemes
+        success: ->
+          options?.success()
+
+    showPhonemeFiles = ->
+      name = $("input[name=name]").val()
+      phonemes = $("textarea[name=phonemes]").val()?.split(/, */)
+
+      _.each phonemes, (phoneme) ->
+        return if phoneme is ""
+        $.ajax
+          type: 'head'
+          url: "/uploads/#{name}/#{phoneme}.mp3"
+          success: ->
+            $("#mp3s").append "
+              <a href='/uploads/#{name}/#{phoneme}.mp3'>Listen to #{phoneme}</a> or 
+              <button class='replace' type='button'>Replace</button>
+              <form style='display:none' method='post' action='/upload' enctype='multipart/form-data'>
+                <label for='file'>#{phoneme} <small>mp3</small></label>
+                <input name='file' type='file'/>
+                <input name='phoneme' value='#{phoneme}' type='hidden'/>
+                <input name='language-name' value='#{name}' type='hidden'/>
+                <input name='Upload' type='submit'/>
+              </form>
+            "
+          error: ->
+            $("#mp3s").append "
+              <br/>
+              File not yet uploaded for #{phoneme}<br/>
+              <form method='post' action='/upload' enctype='multipart/form-data'>
+                <input name='file' type='file'/>
+                <input name='phoneme' value='#{phoneme}' type='hidden'/>
+                <input name='language-name' value='#{name}' type='hidden'/>
+                <input name='Upload' type='submit'/>
+              </form>
+            "
+
+    if document.location.hash.match /#/
+      $("input[name=name]").val document.location.hash.substring(1)
+      loadPhonemesFromJsonAndShowPhonemeseFiles()
+
+    $('#name').change ->
+      document.location.hash = "#" + $("#name").val()
+      loadPhonemesFromJsonAndShowPhonemeseFiles()
+
+    $('#update').click ->
+      savePhonemesToJson
+        success: ->
+          loadPhonemesFromJsonAndShowPhonemeseFiles()
+
+    $('#mp3s').on "click", 'button.replace', (event) ->
+      $(event.target).next().toggle()
+      
+
+  </script>
+</html>
