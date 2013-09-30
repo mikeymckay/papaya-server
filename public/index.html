@@ -14,13 +14,16 @@
   <body>
     <img id='logo' src='papaya.png'>
     <div style='width:90%'>
-    For each language, specify a name and the phonemes required for that language. Pressing update will then create a button to upload sound files for each phoneme.<br/><br/>
+    For each language, specify a name of the language and the phonemes required for that language. Pressing update will then create a button to upload sound files for each phoneme.<br/><br/>
     </div>
-    <label for='name'>Name</label>
-    <input id='name' name='name' type='text'></input>
+    <label for='language'>Language</label>
+    <input id='language' name='language' type='text'></input>
 
     <label for='phonemes'>Phonemes</label>
-    <textarea name='phonemes' id='phonemes'></textarea>
+    <textarea style='height:4em' name='phonemes' id='phonemes'></textarea>
+
+    <label for='voices'>Voices</label>
+    <textarea name='voices' id='voices'>Female</textarea>
 
     <button id='update' type='button'>Update</button>
     <div id='mp3s'></div>
@@ -36,84 +39,95 @@
       $("textarea[name=phonemes]").val ""
       $("#mp3s").html ""
 
-    loadPhonemesFromJson = (options) ->
+    loadPhonemes = (options) ->
       clear()
-      name = $("input[name=name]").val()
+      language = $("input[name=language]").val()
+      url = "/uploads/#{language}/#{language}.json"
       $.ajax
         type: 'get'
-        url: "/uploads/#{name}/phonemes.json"
+        url: url
         dataType: "json"
         success: (result) ->
-          $("textarea[name=phonemes]").val result.join(", ")
+          $("textarea[name=phonemes]").val result.phonemes.join(", ")
+          $("textarea[name=voices]").val result.voices.join(", ")
           options?.success()
         error: ->
-          console.log "Error loading phonemes.json"
+          console.log "Error loading #{url}"
 
-    loadPhonemesFromJsonAndShowPhonemeseFiles = (options) ->
-      loadPhonemesFromJson
+    loadPhonemesAndShowPhonemesFiles = (options) ->
+      loadPhonemes
         success: ->
           showPhonemeFiles
             success: ->
               options?.success()
 
-    savePhonemesToJson  = (options) ->
-      name = $("input[name=name]").val()
+    savePhonemes= (options) ->
+      language = $("input[name=language]").val()
+      voices = $("textarea[name=voices]").val()?.split(/, */)
       phonemes = $("textarea[name=phonemes]").val()?.split(/, */)
-      console.log phonemes
 
       $.ajax
         type: 'post'
-        url: "/save/#{name}"
+        url: "/save/#{language}"
         data:
-          data: JSON.stringify phonemes
+          data: JSON.stringify {
+            phonemes: phonemes
+            voices: voices
+          }
         success: ->
           options?.success()
 
     showPhonemeFiles = ->
-      name = $("input[name=name]").val()
+      language = $("input[name=language]").val()
       phonemes = $("textarea[name=phonemes]").val()?.split(/, */)
+      voices = $("textarea[name=voices]").val()?.split(/, */)
 
       _.each phonemes, (phoneme) ->
         return if phoneme is ""
-        $.ajax
-          type: 'head'
-          url: "/uploads/#{name}/#{phoneme}.mp3"
-          success: ->
-            $("#mp3s").append "
-              <a href='/uploads/#{name}/#{phoneme}.mp3'>Listen to #{phoneme}</a> or 
-              <button class='replace' type='button'>Replace</button>
-              <form style='display:none' method='post' action='/upload' enctype='multipart/form-data'>
-                <label for='file'>#{phoneme} <small>mp3</small></label>
-                <input name='file' type='file'/>
-                <input name='phoneme' value='#{phoneme}' type='hidden'/>
-                <input name='language-name' value='#{name}' type='hidden'/>
-                <input name='Upload' type='submit'/>
-              </form>
-            "
-          error: ->
-            $("#mp3s").append "
-              <br/>
-              File not yet uploaded for #{phoneme}<br/>
-              <form method='post' action='/upload' enctype='multipart/form-data'>
-                <input name='file' type='file'/>
-                <input name='phoneme' value='#{phoneme}' type='hidden'/>
-                <input name='language-name' value='#{name}' type='hidden'/>
-                <input name='Upload' type='submit'/>
-              </form>
-            "
+        _.each voices, (voice) ->
+          basename = "#{voice}_#{phoneme}.mp3"
+          filepath = "/uploads/#{language}/#{basename}"
+          $.ajax
+            type: 'head'
+            url: filepath
+            success: ->
+              $("#mp3s").append "
+                <div>
+                <a href='#{filepath}'>Listen to #{basename}</a> or 
+                <button class='replace' type='button'>Replace</button>
+                <form style='display:none' method='post' action='/upload' enctype='multipart/form-data'>
+                  <label for='file'>#{basename} <small>mp3</small></label>
+                  <input name='file' type='file'/>
+                  <input name='phoneme' value='#{basename}' type='hidden'/>
+                  <input name='language-name' value='#{language}' type='hidden'/>
+                  <input name='Upload' type='submit'/>
+                </form>
+                </div>
+              "
+            error: ->
+              $("#mp3s").append "
+                <br/>
+                File not yet uploaded for #{basename}<br/>
+                <form method='post' action='/upload' enctype='multipart/form-data'>
+                  <input name='file' type='file'/>
+                  <input name='phoneme' value='#{basename}' type='hidden'/>
+                  <input name='language-name' value='#{language}' type='hidden'/>
+                  <input name='Upload' type='submit'/>
+                </form>
+              "
 
     if document.location.hash.match /#/
-      $("input[name=name]").val document.location.hash.substring(1)
-      loadPhonemesFromJsonAndShowPhonemeseFiles()
+      $("input[name=language]").val document.location.hash.substring(1)
+      loadPhonemesAndShowPhonemesFiles()
 
-    $('#name').change ->
-      document.location.hash = "#" + $("#name").val()
-      loadPhonemesFromJsonAndShowPhonemeseFiles()
+    $('#language').change ->
+      document.location.hash = "#" + $("#language").val()
+      loadPhonemesAndShowPhonemesFiles()
 
     $('#update').click ->
-      savePhonemesToJson
+      savePhonemes
         success: ->
-          loadPhonemesFromJsonAndShowPhonemeseFiles()
+          loadPhonemesAndShowPhonemesFiles()
 
     $('#mp3s').on "click", 'button.replace', (event) ->
       $(event.target).next().toggle()
