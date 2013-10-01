@@ -88,11 +88,12 @@
 	width: 98%;
 	margin: 0 10px 0 10px;
 }
-button {
+a, button {
   border-radius: 5px;
 	cursor: pointer;
-	background-color: #ffb064;
+  background-color: #99ca20;
   color: white;
+  text-decoration: none;
 	font-family: Andika;
 	font-size: 2em;
 	line-height: 40px;
@@ -187,3 +188,13 @@ img#logo{
   top: 5px;
 }
 
+.tt-dropdown-menu{
+  background-color: #ff7264;
+}
+
+
+.tt-is-under-cursor{
+  background-color: #99ca20;
+  color: white;
+}
+      
