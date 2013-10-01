@@ -78,6 +78,25 @@
         success: ->
           options?.success()
 
+
+    modifySoundFile = (language,wavBasename,basename,display=false) ->
+      "
+        <div data-language='#{language}' data-wavBasename='#{wavBasename}' style='#{if display then "" else "display:none"}'>
+          You can either record a new sound now or upload an existing one.
+          <button class='record' id='record-#{wavBasename}'>Record</button>
+          <button style='display:none' class='stop-recording' id='stop-recording-#{wavBasename}'>Stop Recording</button>
+          <button style='display:none' class='play' id='play-#{wavBasename}'>Play Recording</button>
+          <button style='display:none' class='upload' id='upload-#{wavBasename}'>Upload Recording</button>
+          <form method='post' action='/upload' enctype='multipart/form-data'>
+            <label for='file'>#{basename} <small>mp3</small></label>
+            <input name='file' type='file'/>
+            <input name='phoneme' value='#{basename}' type='hidden'/>
+            <input name='language-name' value='#{language}' type='hidden'/>
+            <input name='Upload' type='submit'/>
+          </form>
+        </div>
+      "
+
     showPhonemeFiles = ->
       language = $("input[name=language]").val()
       phonemes = $("textarea[name=phonemes]").val()?.split(/, */)
@@ -97,32 +116,14 @@
                 <div>
                   <a href='#{filepath}'>Listen to #{basename}</a> or 
                   <button class='replace' type='button'>Replace</button>
-                  <div data-language='#{language}' data-wavBasename='#{wavBasename}' style='display:none'>
-                    You can either record a new sound now or upload an existing one.
-                    <button class='record' id='record-#{wavBasename}'>Record</button>
-                    <button style='display:none' class='stop-recording' id='stop-recording-#{wavBasename}'>Stop Recording</button>
-                    <button style='display:none' class='play' id='play-#{wavBasename}'>Play Recording</button>
-                    <button style='display:none' class='upload' id='upload-#{wavBasename}'>Upload Recording</button>
-                    <form method='post' action='/upload' enctype='multipart/form-data'>
-                      <label for='file'>#{basename} <small>mp3</small></label>
-                      <input name='file' type='file'/>
-                      <input name='phoneme' value='#{basename}' type='hidden'/>
-                      <input name='language-name' value='#{language}' type='hidden'/>
-                      <input name='Upload' type='submit'/>
-                    </form>
-                  </div>
+                  #{modifySoundFile(language,wavBasename,basename)}
                 </div>
               "
             error: ->
               $("#mp3s").append "
                 <br/>
                 File not yet uploaded for #{basename}<br/>
-                <form method='post' action='/upload' enctype='multipart/form-data'>
-                  <input name='file' type='file'/>
-                  <input name='phoneme' value='#{basename}' type='hidden'/>
-                  <input name='language-name' value='#{language}' type='hidden'/>
-                  <input name='Upload' type='submit'/>
-                </form>
+                #{modifySoundFile(language,wavBasename,basename,true)}
               "
 
     if document.location.hash.match /#/

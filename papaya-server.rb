@@ -43,6 +43,11 @@ get '/languages' do
   (Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."]).to_json
 end
 
+get '/app/config.json' do
+  all_languages = (Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."]).join(",")
+  redirect "/json_package?languages=#{all_languages}"
+end
+
 get '/json_package' do
   content_type :json
   result = {
