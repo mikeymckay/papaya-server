@@ -21,12 +21,18 @@ end
 
 post '/upload' do
 # TODO check for mp3 suffix
-  return "Error uploading"  unless params[:file] && (tmpfile = params[:file][:tempfile]) && (name = params[:file][:filename])
+  return "Error uploading"  unless params[:file] && params[:file][:tempfile] && params[:file][:filename]
 
-  while blk = tmpfile.read(65536)
-    dir_name = "#{Dir.pwd}/public/uploads/#{params["language-name"]}"
-    FileUtils.mkdir_p dir_name
-    File.open(File.join(dir_name, "#{params[:phoneme]}"), "wb") { |f| f.write(tmpfile.read) }
+  dir_name = "#{Dir.pwd}/public/uploads/#{params["language-name"]}"
+  FileUtils.mkdir_p dir_name
+  filename = "#{dir_name}/#{params[:phoneme]}"
+  File.open(filename, "w") do |f|
+    f.write(params['file'][:tempfile].read)
+  end
+
+  if params[:format] and params[:format] == "wav"
+    #encode to mp3
+    `lame #{filename}`
   end
 
   redirect '/index.html'

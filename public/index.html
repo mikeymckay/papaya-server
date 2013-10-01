@@ -87,6 +87,7 @@
         return if phoneme is ""
         _.each voices, (voice) ->
           basename = "#{voice}_#{phoneme}.mp3"
+          wavBasename = "#{voice}_#{phoneme}.wav"
           filepath = "/uploads/#{language}/#{basename}"
           $.ajax
             type: 'head'
@@ -96,11 +97,12 @@
                 <div>
                   <a href='#{filepath}'>Listen to #{basename}</a> or 
                   <button class='replace' type='button'>Replace</button>
-                  <div style='display:none'>
-                    <button class='record' id='record-#{basename}'>Record</button>
-                    <button class='stop-recording' id='stop-recording-#{basename}'>Stop Recording</button>
-                    <button class='play' id='play-#{basename}'>Play Recording</button>
-                    <button class='upload' id='upload-#{basename}'>Upload Recording</button>
+                  <div data-language='#{language}' data-wavBasename='#{wavBasename}' style='display:none'>
+                    You can either record a new sound now or upload an existing one.
+                    <button class='record' id='record-#{wavBasename}'>Record</button>
+                    <button style='display:none' class='stop-recording' id='stop-recording-#{wavBasename}'>Stop Recording</button>
+                    <button style='display:none' class='play' id='play-#{wavBasename}'>Play Recording</button>
+                    <button style='display:none' class='upload' id='upload-#{wavBasename}'>Upload Recording</button>
                     <form method='post' action='/upload' enctype='multipart/form-data'>
                       <label for='file'>#{basename} <small>mp3</small></label>
                       <input name='file' type='file'/>
@@ -139,16 +141,44 @@
     $('#mp3s').on "click", 'button.replace', (event) ->
       $(event.target).next().toggle()
 
+    Recorder.initialize
+      swfSrc: "./recorder.swf"
+
     $('#mp3s').on "click", "button.record", (event) ->
-      Recorder.initialize
-        swfSrc: "js/recorder.swf"
+      $("button.record").hide()
+      $("button.upload").hide()
+      $("button.stop-recording").show()
+      $("button.play").show()
       Recorder.record()
 
     $('#mp3s').on "click", "button.stop-recording", (event) ->
-      Recorder.stop
+      $("button.record").show()
+      $("button.upload").show()
+      $("button.stop-recording").hide()
+      Recorder.stop()
 
     $('#mp3s').on "click", "button.play", (event) ->
-      Recorder.play
+      Recorder.stop()
+      Recorder.play()
+
+    $('#mp3s').on "click", "button.upload", (event) ->
+      target = $(event.target)
+      wavBasename = target.parent().attr "data-wavBasename"
+      languageName = target.parent().attr "data-language"
+      
+      Recorder.upload
+        method: "POST"
+        url: "/upload"
+        audioParam: "file"
+        params:
+          "language-name": languageName
+          phoneme: wavBasename
+          format: "wav"
+        success: ->
+          console.log "Success"
+        error: ->
+          console.log "Error"
+        progress: null
 
 
   </script>
