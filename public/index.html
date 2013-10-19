@@ -14,7 +14,10 @@
   <body>
     <img id='logo' src='papaya.png'>
     <div style='width:90%'>
-    For each language, specify a name of the language and the phonemes required for that language. Pressing update will then create a button to upload sound files for each phoneme.<br/><br/>
+    <a href='/Papaya-debug.apk'>Download Android app</a>
+    <a href='/app/index.html'>Live Version</a>
+<br/>
+    Welcome! On this page you can edit existing collections of phonemes and their sounds for an already existing language or create new languages that will be available for download on the Android app. For each language, specify a name of the language and the phonemes required for that language. Pressing update will then create a button to upload sound files for each phoneme.<br/><br/>
     </div>
     <div id="jplayer"></div>
     <label for='language'>Language</label>
@@ -35,10 +38,14 @@
   <script src="coffee-script.js"></script>
   <script src="underscore-min.js"></script>
   <script src="underscore.string.js" type="text/javascript"></script>
+  <script src="typeahead.min.js"></script>
   <script type="text/javascript"> _.mixin(_.str.exports()) </script>
   <script type='text/coffeescript'>
-
     $("#jplayer").jPlayer()
+
+    $("#language").typeahead
+      name: "languages"
+      prefetch: "/languages"
 
     clear = ->
       $("textarea[name=phonemes]").val ""
@@ -82,6 +89,25 @@
         success: ->
           options?.success()
 
+
+    modifySoundFile = (language,wavBasename,basename,display=false) ->
+      "
+        <div data-language='#{language}' data-wavBasename='#{wavBasename}' style='#{if display then "" else "display:none"}'>
+          You can either record a new sound now or upload an existing one.
+          <button class='record' id='record-#{wavBasename}'>Record</button>
+          <button style='display:none' class='stop-recording' id='stop-recording-#{wavBasename}'>Stop Recording</button>
+          <button style='display:none' class='play' id='play-#{wavBasename}'>Play Recording</button>
+          <button style='display:none' class='upload' id='upload-#{wavBasename}'>Upload Recording</button>
+          <form method='post' action='/upload' enctype='multipart/form-data'>
+            <label for='file'>#{basename} <small>mp3</small></label>
+            <input name='file' type='file'/>
+            <input name='phoneme' value='#{basename}' type='hidden'/>
+            <input name='language-name' value='#{language}' type='hidden'/>
+            <input name='Upload' type='submit'/>
+          </form>
+        </div>
+      "
+
     showPhonemeFiles = ->
       language = $("input[name=language]").val()
       phonemes = $("textarea[name=phonemes]").val()?.split(/, */)
@@ -91,6 +117,7 @@
         return if phoneme is ""
         _.each voices, (voice) ->
           basename = "#{voice}_#{phoneme}.mp3"
+          wavBasename = "#{voice}_#{phoneme}.wav"
           filepath = "/uploads/#{language}/#{basename}"
           $.ajax
             type: 'head'
@@ -101,40 +128,26 @@
                   <a href='#{filepath}'>Listen to #{basename}</a> or 
                   <button class='listen' data-filepath='#{filepath}'>Listen to #{basename}</button> or 
                   <button class='replace' type='button'>Replace</button>
-                  <div style='display:none'>
-                    <button class='record' id='record-#{basename}'>Record</button>
-                    <button class='stop-recording' id='stop-recording-#{basename}'>Stop Recording</button>
-                    <button class='play' id='play-#{basename}'>Play Recording</button>
-                    <button class='upload' id='upload-#{basename}'>Upload Recording</button>
-                    <form method='post' action='/upload' enctype='multipart/form-data'>
-                      <label for='file'>#{basename} <small>mp3</small></label>
-                      <input name='file' type='file'/>
-                      <input name='phoneme' value='#{basename}' type='hidden'/>
-                      <input name='language-name' value='#{language}' type='hidden'/>
-                      <input name='Upload' type='submit'/>
-                    </form>
-                  </div>
+                  #{modifySoundFile(language,wavBasename,basename)}
                 </div>
               "
             error: ->
               $("#mp3s").append "
                 <br/>
                 File not yet uploaded for #{basename}<br/>
-                <form method='post' action='/upload' enctype='multipart/form-data'>
-                  <input name='file' type='file'/>
-                  <input name='phoneme' value='#{basename}' type='hidden'/>
-                  <input name='language-name' value='#{language}' type='hidden'/>
-                  <input name='Upload' type='submit'/>
-                </form>
+                #{modifySoundFile(language,wavBasename,basename,true)}
               "
 
     if document.location.hash.match /#/
       $("input[name=language]").val document.location.hash.substring(1)
       loadPhonemesAndShowPhonemesFiles()
 
-    $('#language').change ->
+    updateLanguage = ->
       document.location.hash = "#" + $("#language").val()
       loadPhonemesAndShowPhonemesFiles()
+
+    $('#language').change updateLanguage
+    $('#language').on "typeahead:selected", updateLanguage
 
     $('#update').click ->
       savePhonemes
@@ -144,16 +157,44 @@
     $('#mp3s').on "click", 'button.replace', (event) ->
       $(event.target).next().toggle()
 
+    Recorder.initialize
+      swfSrc: "./recorder.swf"
+
     $('#mp3s').on "click", "button.record", (event) ->
-      Recorder.initialize
-        swfSrc: "js/recorder.swf"
+      $("button.record").hide()
+      $("button.upload").hide()
+      $("button.stop-recording").show()
+      $("button.play").show()
       Recorder.record()
 
     $('#mp3s').on "click", "button.stop-recording", (event) ->
-      Recorder.stop
+      $("button.record").show()
+      $("button.upload").show()
+      $("button.stop-recording").hide()
+      Recorder.stop()
 
     $('#mp3s').on "click", "button.play", (event) ->
-      Recorder.play
+      Recorder.stop()
+      Recorder.play()
+
+    $('#mp3s').on "click", "button.upload", (event) ->
+      target = $(event.target)
+      wavBasename = target.parent().attr "data-wavBasename"
+      languageName = target.parent().attr "data-language"
+      
+      Recorder.upload
+        method: "POST"
+        url: "/upload"
+        audioParam: "file"
+        params:
+          "language-name": languageName
+          phoneme: wavBasename
+          format: "wav"
+        success: ->
+          console.log "Success"
+        error: ->
+          console.log "Error"
+        progress: null
 
     $('#mp3s').on "click", "button.listen", (event) ->
       filepath = $(event.target).attr("data-filepath")

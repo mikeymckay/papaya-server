@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'sinatra'
 require 'rest-client'
+require 'oj'
 require 'json'
 require 'yaml'
 require 'fileutils'
@@ -21,20 +22,31 @@ end
 
 post '/upload' do
 # TODO check for mp3 suffix
-  return "Error uploading"  unless params[:file] && (tmpfile = params[:file][:tempfile]) && (name = params[:file][:filename])
+  return "Error uploading"  unless params[:file] && params[:file][:tempfile] && params[:file][:filename]
 
-  while blk = tmpfile.read(65536)
-    dir_name = "#{Dir.pwd}/public/uploads/#{params["language-name"]}"
-    FileUtils.mkdir_p dir_name
-    File.open(File.join(dir_name, "#{params[:phoneme]}"), "wb") { |f| f.write(tmpfile.read) }
+  dir_name = "#{Dir.pwd}/public/uploads/#{params["language-name"]}"
+  FileUtils.mkdir_p dir_name
+  filename = "#{dir_name}/#{params[:phoneme]}"
+  File.open(filename, "w") do |f|
+    f.write(params['file'][:tempfile].read)
+  end
+
+  if params[:format] and params[:format] == "wav"
+    #encode to mp3
+    `lame #{filename}`
   end
 
   redirect '/index.html'
 end
 
 get '/languages' do
-  content_type :json
-  (Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."]).to_json
+#  content_type :json
+  Oj.dump(Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."])
+end
+
+get '/app/config.json' do
+  all_languages = (Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."]).join(",")
+  redirect "/json_package?languages=#{all_languages}"
 end
 
 get '/json_package' do
@@ -54,7 +66,7 @@ get '/json_package' do
 
   puts language_config("English")["phonemes"]
   puts result
-  result.to_json
+  Oj.dump(result)
 end
 
 def language_files(language)
