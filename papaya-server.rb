@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'sinatra'
 require 'rest-client'
+require 'oj'
 require 'json'
 require 'yaml'
 require 'fileutils'
@@ -39,8 +40,8 @@ post '/upload' do
 end
 
 get '/languages' do
-  content_type :json
-  (Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."]).to_json
+#  content_type :json
+  Oj.dump(Dir.entries("#{Dir.pwd}/public/uploads")-[".",".."])
 end
 
 get '/app/config.json' do
@@ -65,7 +66,7 @@ get '/json_package' do
 
   puts language_config("English")["phonemes"]
   puts result
-  result.to_json
+  Oj.dump(result)
 end
 
 def language_files(language)
