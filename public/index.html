@@ -33,8 +33,8 @@
     <div id='mp3s'></div>
   </body>
   <script src="recorder.js"></script>
-  <script src="jquery-1.9.1.min.js"></script>A
-  <script type="text/javascript" src="js/jquery.jplayer.min.js"></script>
+  <script src="jquery-1.9.1.min.js"></script>
+  <script type="text/javascript" src="jquery.jplayer.min.js"></script>
   <script src="coffee-script.js"></script>
   <script src="underscore-min.js"></script>
   <script src="underscore.string.js" type="text/javascript"></script>
@@ -116,26 +116,27 @@
       _.each phonemes, (phoneme) ->
         return if phoneme is ""
         _.each voices, (voice) ->
-          basename = "#{voice}_#{phoneme}.mp3"
-          wavBasename = "#{voice}_#{phoneme}.wav"
-          filepath = "/uploads/#{language}/#{basename}"
+          basename = "#{voice}_#{phoneme}"
+          mp3Basename = "#{basename}.mp3"
+          wavBasename = "#{basename}.wav"
+          filepath = "/uploads/#{language}/#{mp3Basename}"
+
+          $("#mp3s").append "<div id='#{basename}'></div>"
+
           $.ajax
             type: 'head'
             url: filepath
             success: ->
-              $("#mp3s").append "
-                <div>
-                  <a href='#{filepath}'>Listen to #{basename}</a> or 
-                  <button class='listen' data-filepath='#{filepath}'>Listen to #{basename}</button> or 
-                  <button class='replace' type='button'>Replace</button>
-                  #{modifySoundFile(language,wavBasename,basename)}
-                </div>
+              $("##{basename}").append "
+                <button class='listen' data-filepath='#{filepath}'>Listen to #{mp3Basename}</button> or 
+                <button class='replace' type='button'>Replace</button>
+                #{modifySoundFile(language,wavBasename,mp3Basename)}
               "
             error: ->
               $("#mp3s").append "
                 <br/>
-                File not yet uploaded for #{basename}<br/>
-                #{modifySoundFile(language,wavBasename,basename,true)}
+                File not yet uploaded for #{mp3Basename}<br/>
+                #{modifySoundFile(language,wavBasename,mp3Basename,true)}
               "
 
     if document.location.hash.match /#/
@@ -179,8 +180,10 @@
 
     $('#mp3s').on "click", "button.upload", (event) ->
       target = $(event.target)
-      wavBasename = target.parent().attr "data-wavBasename"
-      languageName = target.parent().attr "data-language"
+      replaceDiv = target.parent()
+      wavBasename = replaceDiv.attr "data-wavBasename"
+      languageName = replaceDiv.attr "data-language"
+      target.html "Uploading..."
       
       Recorder.upload
         method: "POST"
@@ -192,12 +195,15 @@
           format: "wav"
         success: ->
           console.log "Success"
+          replaceDiv.find(".play").hide()
+          replaceDiv.find(".upload").hide()
+          replaceDiv.hide()
         error: ->
           console.log "Error"
         progress: null
 
     $('#mp3s').on "click", "button.listen", (event) ->
-      filepath = $(event.target).attr("data-filepath")
+      filepath = $(event.target).attr("data-filepath") + "?random=#{Math.random()}"
       $("#jplayer").jPlayer("setMedia",{mp3: filepath})
       $("#jplayer").jPlayer("play")
 

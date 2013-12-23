@@ -33,6 +33,7 @@ post '/upload' do
 
   if params[:format] and params[:format] == "wav"
     #encode to mp3
+    `rm #{filename.sub(/wav/,"mp3")}`
     `lame #{filename}`
   end
 
